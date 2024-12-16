@@ -6,23 +6,80 @@ const regd_users = express.Router();
 let users = [];
 
 const isValid = (username)=>{ //returns boolean
-//write code to check is the username is valid
+  const userswithsamename = users.filter((u)=>u.username === username)
+
+  if (userswithsamename.length > 0) {
+    return false;
+  } else {
+      return true;
+  }
 }
 
 const authenticatedUser = (username,password)=>{ //returns boolean
-//write code to check if username and password match the one we have in records.
+  const validUser = users.filter((u)=>{
+    return u.username === username && u.password === password;
+  })
+
+  if(validUser.length > 0){
+    return true;
+  }else{
+    return false;
+  }
 }
 
 //only registered users can login
 regd_users.post("/login", (req,res) => {
-  //Write your code here
-  return res.status(300).json({message: "Yet to be implemented"});
+  const username = req.body.username;
+  const password = req.body.password;
+
+  // Check if username or password is missing
+  if (!username || !password) {
+    return res.status(404).json({ message: "Error logging in" });
+  }
+
+  if(authenticatedUser(username,password)){
+    // Generate JWT access token
+    let accessToken = jwt.sign({
+      data: password
+    }, 'access', { expiresIn: 60 * 60 });
+    // Store access token and username in session
+    req.session.authorization = {
+      accessToken, username
+    }
+    
+      return res.status(200).send("User successfully logged in");
+    } else {
+      return res.status(208).json({ message: "Invalid Login. Check username and password" });
+    }
+
 });
 
 // Add a book review
 regd_users.put("/auth/review/:isbn", (req, res) => {
   //Write your code here
-  return res.status(300).json({message: "Yet to be implemented"});
+  const isbn = req.params.isbn;
+  const review = req.body.review;
+  const username = req.session.authorization["username"];
+  
+  if(books[isbn] && review !== ''){
+    books[isbn].reviews = {...books[isbn].reviews,[username]:review};
+    res.send(books[isbn]);
+  }else{
+    res.status(404).send("The ISBN or the review given is not valide !");
+  }
+});
+
+//Delete a book review
+regd_users.delete("/auth/review/:isbn", (req, res) => {
+  const isbn = req.params.isbn;
+  const username = req.session.authorization["username"];
+  if(books[isbn] ){
+    delete books[isbn].reviews[username];
+    res.send(books[isbn]);
+  }else{
+    res.status(404).send("The ISBN given is not valide !");
+  }
+
 });
 
 module.exports.authenticated = regd_users;
